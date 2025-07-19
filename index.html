@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Burn Your Thoughts (Terminal Style)</title>
+  <style>
+    body {
+      margin: 0; padding: 0;
+      background: #000000;
+      min-height: 100vh;
+      overflow: hidden;
+      font-family: 'Fira Mono', 'Consolas', 'Menlo', 'Monaco', monospace;
+      color: #43ff43;
+      letter-spacing: 0.01em;
+    }
+    .controls {
+      position: fixed;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #000000;
+      padding: 1em 2em;
+      border-radius: 0.6em;
+      box-shadow: 0 0 10px #0008;
+      z-index: 100;
+      text-align: left;
+      width: 340px;
+      max-width: 95vw;
+      border: 2px solid #43ff43;
+    }
+    .controls label {
+      font-size: 1em;
+      color: #43ff43;
+      margin-bottom: 0.3em;
+      display: block;
+      font-family: inherit;
+      font-weight: bold;
+    }
+    textarea {
+      width: 100%;
+      height: 48px;
+      border-radius: 0.3em;
+      border: 1.5px solid #43ff43;
+      margin-bottom: 0.5em;
+      background: #000000;
+      color: #43ff43;
+      font-size: 1em;
+      font-family: inherit;
+      resize: none;
+      box-sizing: border-box;
+      padding: 0.7em;
+      outline: none;
+      transition: border 0.17s;
+    }
+    textarea:focus {
+      border-color: #b3ff43;
+      background: #132016;
+      color: #b3ff43;
+    }
+    button, .mic-btn, .rec-btn {
+      background: #101a11;
+      color: #43ff43;
+      border: 1.5px solid #43ff43;
+      padding: 0.6em 1em;
+      border-radius: 0.3em;
+      font-size: 1em;
+      cursor: pointer;
+      font-weight: bold;
+      margin-right: 0.5em;
+      vertical-align: middle;
+      transition: background 0.15s, color 0.15s, border 0.15s;
+      font-family: inherit;
+    }
+    button:active, .mic-btn:active, .rec-btn:active { background: #43ff43; color: #101a11; border-color: #b3ff43;}
+    .mic-btn, .rec-btn {
+      display: inline-flex;
+      align-items: center;
+      width: 44px; height: 44px;
+      justify-content: center;
+      padding: 0;
+      margin-right: 0.5em;
+    }
+    .rec-btn.active { background: #43ff43; color: #101a11; border-color: #b3ff43; }
+    #voiceStatus {
+      color: #b3ff43;
+      font-size: 1em;
+      margin-left: 8px;
+      font-family: inherit;
+    }
+    .bubbles {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      pointer-events: none;
+      z-index: 99;
+    }
+    .bubble {
+      position: absolute;
+      min-width: 110px; max-width: 340px;
+      padding: 1em 1.2em;
+      background: #181f18e0;
+      color: #43ff43;
+      border-radius: 0.5em;
+      font-size: 1.1em;
+      font-family: inherit;
+      box-shadow: 0 4px 20px #0006;
+      cursor: grab;
+      pointer-events: auto;
+      user-select: none;
+      transition: box-shadow 0.2s, opacity 0.8s, transform 0.5s, background 0.2s, color 0.2s;
+      z-index: 101;
+      display: flex;
+      align-items: center;
+      gap: 0.7em;
+      border: 1.5px solid #43ff43;
+      font-weight: 500;
+    }
+    .bubble.burning { 
+      animation: burn 1.3s forwards;
+      pointer-events: none;
+      opacity: 0.6;
+      box-shadow: 0 0 30px #43ff43;
+      background: #132813;
+      color: #b3ff43;
+      border-color: #b3ff43;
+    }
+    @keyframes burn {
+      0% { opacity: 1; filter: blur(0px); }
+      60% { opacity: 0.7; filter: blur(8px); transform: scale(1.05);}
+      100% { opacity: 0; filter: blur(40px); transform: scale(1.18) rotate(-16deg);}
+    }
+    .bubble .play-btn {
+      background: #101a11;
+      border: 1.5px solid #43ff43;
+      border-radius: 50%;
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      margin-left: 0;
+      margin-right: 0.2em;
+      padding: 0;
+      transition: background 0.2s, color 0.2s, border 0.2s;
+      color: #123412;
+      font-family: inherit;
+    }
+    .bubble .play-btn:active { background: #43ff43; color: #101a11; border-color: #b3ff43;}
+    .bubble .play-btn svg { margin-left: 2px; }
+    .bubble .transcript {
+      font-size: 1em;
+      color: #b3ff43;
+      font-style: italic;
+      flex: 1;
+      word-break: break-word;
+      font-family: inherit;
+    }
+    /* The label above the fire zone */
+    .fire-label-above {
+      display: block;
+      width: 300px;
+      margin: 0 auto 10px auto;
+      text-align: center;
+      color: #ffd180;
+      font-size: 1.13em;
+      font-family: inherit;
+      font-weight: bold;
+      letter-spacing: 1px;
+      background: #181f18;
+      border-radius: 0.2em 0.2em 0 0;
+      border: 1px solid #ffd180;
+      padding: 0.45em 0;
+      box-shadow: 0 2px 10px #0007;
+      position: relative;
+      z-index: 11;
+    }
+    #fire-zone {
+      position: fixed;
+      left: 50%;
+      bottom: 0;
+      transform: translateX(-50%);
+      width: 300px;
+      height: 120px;
+      z-index: 5;
+      pointer-events: auto;
+      background: none;
+    }
+    .fire-label {
+      position: absolute;
+      bottom: 30px;
+      width: 100%;
+      text-align: center;
+      top: 14px;
+      color: #43ff43;
+      font-size: 1.2em;
+      font-weight: bold;
+      font-family: inherit;
+      pointer-events: none;
+      text-shadow: 0 2px 8px #43ff43, 0 0 10px #fff;
+      letter-spacing: 2px;
+      background: #000000;
+      border-radius: 0.2em;
+      border: 1px solid #43ff43;
+      padding: 0.2em 0;
+    }
+    canvas {
+      display: block;
+      pointer-events: none;
+      background: #000000;
+    }
+    @media (max-width: 600px) {
+      .controls { width: 96vw; min-width: 0; padding: 1em 0.5em;}
+      textarea { width: 100%; }
+      .fire-label-above, #fire-zone { width: 96vw; }
+      .bubble { max-width: 90vw;}
+    }
+  </style>
+  <script>
+    // Prevent page content loss on reload (localStorage for text and voice bubbles)
+    window.addEventListener('beforeunload', function(){
+      // Save all bubbles: text and voice
+      const bubblesData = window.bubblesArr?.map(b => {
+        if (b.el.dataset.voice) {
+          return {
+            type: 'voice',
+            blobUrl: b.el.dataset.voice,
+            transcript: b.el.querySelector('.transcript')?.textContent || ''
+          };
+        } else {
+          return {
+            type: 'text',
+            text: b.el.textContent
+          };
+        }
+      }) || [];
+      localStorage.setItem('thoughtBubbles', JSON.stringify(bubblesData));
+    });
+    window.addEventListener('DOMContentLoaded', function(){
+      const oldBubbles = JSON.parse(localStorage.getItem('thoughtBubbles')||'[]');
+      if (oldBubbles.length) {
+        for (const item of oldBubbles) {
+          if (item.type === 'text') {
+            createBubble(item.text);
+          } else if (item.type === 'voice') {
+            createVoiceBubbleFromUrl(item.blobUrl, item.transcript);
+          }
+        }
+      }
+    });
+
+    // Prevent right-click and cloning (simple anti-copy)
+    window.addEventListener('contextmenu', function(e){
+      e.preventDefault();
+      
+    });
+    window.addEventListener('copy', function(e){
+      e.preventDefault();
+      alert('Copy is disabled.');
+    });
+    window.addEventListener('keydown', function(e){
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C' || e.key === 'u' || e.key === 'U')) {
+        e.preventDefault();
+        alert('Cloning and copying are disabled.');
+      }
+    });
+  </script>
+</head>
+<body>
+  <div class="controls">
+    <label for="thoughtInput">user@terminal:~$ Burn your thoughts</label>
+    <textarea id="thoughtInput" placeholder="Type your thought..."></textarea>
+    <button onclick="addBubble()">Send</button>
+    <button class="mic-btn" id="micBtn" title="Speech-to-text">
+      <svg height="22" width="22" viewBox="0 0 24 24" fill="#43ff43">
+        <circle cx="12" cy="12" r="10" fill="#101a11" stroke="#43ff43" stroke-width="2"/>
+        <rect x="10" y="7" width="4" height="8" rx="2" fill="#43ff43"/>
+        <rect x="11" y="15" width="2" height="3" rx="1" fill="#43ff43"/>
+      </svg>
+    </button>
+    <button class="rec-btn" id="recBtn" title="Record voice message">
+      <svg height="22" width="22" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" fill="#101a11" stroke="#43ff43" stroke-width="2"/>
+        <rect x="10" y="7" width="4" height="8" rx="2" fill="#43ff43"/>
+        <rect x="11" y="15" width="2" height="3" rx="1" fill="#43ff43"/>
+        <circle cx="12" cy="19" r="2" fill="#43ff43"/>
+      </svg>
+    </button>
+    <span id="voiceStatus"></span>
+  </div>
+  <div class="bubbles" id="bubbles"></div>
+  <!-- Label above fire zone, outside and not overlapping the fire -->
+ 
+  <div id="fire-zone">
+    <div class="fire-label-above">Drag here to burn your thought</div>
+    <canvas id="fireCanvas" width="300" height="120"></canvas>
+  </div>
+  <script>
+  // ---- Speech Recognition (for transcript on voice bubble) ----
+  let recognizing = false;
+  let recognition;
+  const micBtn = document.getElementById('micBtn');
+  const voiceStatus = document.getElementById('voiceStatus');
+  micBtn.onclick = () => {
+    if (recognizing) {
+      recognition.stop();
+      return;
+    }
+    startVoice();
+  };
+  function startVoice() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert('Sorry, voice recognition is not supported on this browser.');
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognizing = true;
+    micBtn.classList.add('active');
+    voiceStatus.textContent = 'Listening...';
+    recognition.onresult = (e) => {
+      recognizing = false;
+      micBtn.classList.remove('active');
+      voiceStatus.textContent = '';
+      const transcript = e.results[0][0].transcript;
+      document.getElementById('thoughtInput').value = transcript;
+    };
+    recognition.onerror = (e) => {
+      recognizing = false;
+      micBtn.classList.remove('active');
+      voiceStatus.textContent = 'Voice error';
+    };
+    recognition.onend = () => {
+      recognizing = false;
+      micBtn.classList.remove('active');
+      voiceStatus.textContent = '';
+    };
+    recognition.start();
+  }
+
+  // ---- Voice Recorder API for floating voice bubbles ----
+  let mediaRecorder, recordedChunks = [];
+  let recBtn = document.getElementById('recBtn');
+  let isRecording = false;
+  recBtn.onclick = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
+  function startRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert('Voice recording not supported on this browser.');
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(stream => {
+        mediaRecorder = new MediaRecorder(stream);
+        recordedChunks = [];
+        mediaRecorder.ondataavailable = e => {
+          if (e.data.size > 0) recordedChunks.push(e.data);
+        };
+        mediaRecorder.onstop = () => {
+          let audioBlob = new Blob(recordedChunks, {type: 'audio/webm'});
+          createVoiceBubble(audioBlob);
+        };
+        mediaRecorder.start();
+        isRecording = true;
+        recBtn.classList.add('active');
+        voiceStatus.textContent = 'Recording...';
+      })
+      .catch(err => {
+        alert('Could not access microphone.');
+      });
+  }
+  function stopRecording() {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      isRecording = false;
+      recBtn.classList.remove('active');
+      voiceStatus.textContent = '';
+    }
+  }
+
+  // --- Bubble Creation and Drag ----
+  let bubblesArr = window.bubblesArr = [];
+  function addBubble() {
+    const thought = document.getElementById('thoughtInput').value.trim();
+    if (!thought) return;
+    createBubble(thought);
+    document.getElementById('thoughtInput').value = '';
+  }
+  function createBubble(text) {
+    const bubbles = document.getElementById('bubbles');
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text;
+
+    let bw = 120 + Math.random() * 100;
+    let bh = 56;
+    let x = Math.random() * (window.innerWidth-bw-20);
+    let y = Math.random() * (window.innerHeight-bh-220) + 80;
+    bubble.style.left = `${x}px`;
+    bubble.style.top = `${y}px`;
+
+    let angle = Math.random()*2*Math.PI;
+    let speed = 0.6 + Math.random()*0.8;
+    let vx = Math.cos(angle)*speed;
+    let vy = Math.sin(angle)*speed;
+
+    bubbles.appendChild(bubble);
+
+    bubble.draggable = true;
+    bubble.ondragstart = (e) => {
+      e.dataTransfer.setData('text/plain', text);
+      bubble.classList.add('dragging');
+      e.dataTransfer.setDragImage(bubble, bubble.offsetWidth/2, bubble.offsetHeight/2);
+      window._draggedBubble = bubble;
+      bubble.moving = false;
+    };
+    bubble.ondragend = (e) => {
+      bubble.classList.remove('dragging');
+      window._draggedBubble = null;
+      bubble.moving = true;
+    };
+
+    bubblesArr.push({el: bubble, x, y, vx, vy, bw, bh, moving: true});
+  }
+
+  // ---- Create a floating voice bubble with play button ----
+  function createVoiceBubble(audioBlob) {
+    const bubbles = document.getElementById('bubbles');
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    // Play button
+    const playBtn = document.createElement('button');
+    playBtn.className = 'play-btn';
+    playBtn.innerHTML = `
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="#43ff43">
+        <circle cx="12" cy="12" r="10" fill="#101a11" stroke="#43ff43" stroke-width="2"/>
+        <polygon points="10,8 16,12 10,16" fill="#43ff43"/>
+      </svg>
+    `;
+    bubble.appendChild(playBtn);
+
+    // Transcript (optional, browser speech API)
+    let transcriptSpan = document.createElement('span');
+    transcriptSpan.className = 'transcript';
+    transcriptSpan.textContent = '';
+    bubble.appendChild(transcriptSpan);
+
+    // Audio element
+    let audio = document.createElement('audio');
+    const blobUrl = URL.createObjectURL(audioBlob);
+    audio.src = blobUrl;
+    audio.preload = 'auto';
+    bubble.dataset.voice = blobUrl; // store for persistence
+
+    playBtn.onclick = function() {
+      if (audio.paused) {
+        audio.play();
+        playBtn.innerHTML = `
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="#43ff43">
+            <circle cx="12" cy="12" r="10" fill="#101a11" stroke="#43ff43" stroke-width="2"/>
+            <rect x="9" y="8" width="2.5" height="8" rx="1.5" fill="#43ff43"/>
+            <rect x="13" y="8" width="2.5" height="8" rx="1.5" fill="#43ff43"/>
+          </svg>
+        `;
+      } else {
+        audio.pause();
+        playBtn.innerHTML = `
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="#43ff43">
+            <circle cx="12" cy="12" r="10" fill="#101a11" stroke="#43ff43" stroke-width="2"/>
+            <polygon points="10,8 16,12 10,16" fill="#43ff43"/>
+          </svg>
+        `;
+      }
+    };
+    audio.onended = function() {
+      playBtn.innerHTML = `
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="#43ff43">
+          <circle cx="12" cy="12" r="10" fill="#101a11" stroke="#43ff43" stroke-width="2"/>
+          <polygon points="10,8 16,12 10,16" fill="#43ff43"/>
+        </svg>
+      `;
+    };
+    bubble.appendChild(audio);
+
+    let bw = 150 + Math.random() * 120;
+    let bh = 64;
+    let x = Math.random() * (window.innerWidth-bw-20);
+    let y = Math.random() * (window.innerHeight-bh-220) + 80;
+    bubble.style.left = `${x}px`;
+    bubble.style.top = `${y}px`;
+
+    let angle = Math.random()*2*Math.PI;
+    let speed = 0.6 + Math.random()*0.8;
+    let vx = Math.cos(angle)*speed;
+    let vy = Math.sin(angle)*speed;
+
+    bubbles.appendChild(bubble);
+
+    bubble.draggable = true;
+    bubble.ondragstart = (e) => {
+      bubble.classList.add('dragging');
+      window._draggedBubble = bubble;
+      bubble.moving = false;
+      e.dataTransfer.setDragImage(bubble, bubble.offsetWidth/2, bubble.offsetHeight/2);
+    };
+    bubble.ondragend = (e) => {
+      bubble.classList.remove('dragging');
+      window._draggedBubble = null;
+      bubble.moving = true;
+    };
+
+    transcriptSpan.textContent = '';
+
+    bubblesArr.push({el: bubble, x, y, vx, vy, bw, bh, moving: true});
+  }
+
+  // ---- Restore voice bubble from url (after reload)
+  function createVoiceBubbleFromUrl(blobUrl, transcript) {
+    const bubbles = document.getElementById('bubbles');
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.dataset.voice = blobUrl;
+
+    // Play button
+    const playBtn = document.createElement('button');
+    playBtn.className = 'play-btn';
+    playBtn.innerHTML = `
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="#43ff43">
+        <circle cx="12" cy="12" r="10" fill="#101a11" stroke="#43ff43" stroke-width="2"/>
+        <polygon points="10,8 16,12 10,16" fill="#43ff43"/>
+      </svg>
+    `;
+    bubble.appendChild(playBtn);
+
+    // Transcript
+    let transcriptSpan = document.createElement('span');
+    transcriptSpan.className = 'transcript';
+    transcriptSpan.textContent = transcript || '';
+    bubble.appendChild(transcriptSpan);
+
+    // Audio element
+    let audio = document.createElement('audio');
+    audio.src = blobUrl;
+    audio.preload = 'auto';
+
+    playBtn.onclick = function() {
+      if (audio.paused) {
+        audio.play();
+        playBtn.innerHTML = `
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="#43ff43">
+            <circle cx="12" cy="12" r="10" fill="#101a11" stroke="#43ff43" stroke-width="2"/>
+            <rect x="9" y="8" width="2.5" height="8" rx="1.5" fill="#43ff43"/>
+            <rect x="13" y="8" width="2.5" height="8" rx="1.5" fill="#43ff43"/>
+          </svg>
+        `;
+      } else {
+        audio.pause();
+        playBtn.innerHTML = `
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="#43ff43">
+            <circle cx="12" cy="12" r="10" fill="#101a11" stroke="#43ff43" stroke-width="2"/>
+            <polygon points="10,8 16,12 10,16" fill="#43ff43"/>
+          </svg>
+        `;
+      }
+    };
+    audio.onended = function() {
+      playBtn.innerHTML = `
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="#43ff43">
+          <circle cx="12" cy="12" r="10" fill="#101a11" stroke="#43ff43" stroke-width="2"/>
+          <polygon points="10,8 16,12 10,16" fill="#43ff43"/>
+        </svg>
+      `;
+    };
+    bubble.appendChild(audio);
+
+    let bw = 150 + Math.random() * 120;
+    let bh = 64;
+    let x = Math.random() * (window.innerWidth-bw-20);
+    let y = Math.random() * (window.innerHeight-bh-220) + 80;
+    bubble.style.left = `${x}px`;
+    bubble.style.top = `${y}px`;
+
+    let angle = Math.random()*2*Math.PI;
+    let speed = 0.6 + Math.random()*0.8;
+    let vx = Math.cos(angle)*speed;
+    let vy = Math.sin(angle)*speed;
+
+    bubbles.appendChild(bubble);
+
+    bubble.draggable = true;
+    bubble.ondragstart = (e) => {
+      bubble.classList.add('dragging');
+      window._draggedBubble = bubble;
+      bubble.moving = false;
+      e.dataTransfer.setDragImage(bubble, bubble.offsetWidth/2, bubble.offsetHeight/2);
+    };
+    bubble.ondragend = (e) => {
+      bubble.classList.remove('dragging');
+      window._draggedBubble = null;
+      bubble.moving = true;
+    };
+
+    bubblesArr.push({el: bubble, x, y, vx, vy, bw, bh, moving: true});
+  }
+
+  // ---- Bubble Floating Logic ----
+  function moveBubbles() {
+    for (let b of bubblesArr) {
+      if (!b.moving) continue;
+      b.x += b.vx;
+      b.y += b.vy;
+      if (b.x < 0) { b.x = 0; b.vx *= -1; }
+      if (b.x > window.innerWidth - b.bw) { b.x = window.innerWidth-b.bw; b.vx *= -1; }
+      if (b.y < 60) { b.y = 60; b.vy *= -1; }
+      if (b.y > window.innerHeight - b.bh - 10) { b.y = window.innerHeight-b.bh-10; b.vy *= -1; }
+      b.el.style.left = b.x + 'px';
+      b.el.style.top = b.y + 'px';
+    }
+    requestAnimationFrame(moveBubbles);
+  }
+  moveBubbles();
+
+  // ---- Fire Zone Drag Handling ----
+  const fireZone = document.getElementById('fire-zone');
+  fireZone.addEventListener('dragover', function(e){
+    e.preventDefault();
+    fireZone.style.boxShadow = "0 0 38px 6px #ffd180";
+  });
+  fireZone.addEventListener('dragleave', function(e){
+    fireZone.style.boxShadow = "";
+  });
+  fireZone.addEventListener('drop', function(e){
+    e.preventDefault();
+    fireZone.style.boxShadow = "";
+    const bubble = window._draggedBubble;
+    if (bubble) {
+      burnBubble(bubble);
+    }
+  });
+
+  function burnBubble(bubble) {
+    bubble.classList.add('burning');
+    bubble.moving = false;
+    setTimeout(()=>{
+      bubble.remove();
+      bubblesArr = bubblesArr.filter(b=>b.el!==bubble);
+      // Save bubbles again after burn
+      const bubblesData = bubblesArr.map(b => {
+        if (b.el.dataset.voice) {
+          return {
+            type: 'voice',
+            blobUrl: b.el.dataset.voice,
+            transcript: b.el.querySelector('.transcript')?.textContent || ''
+          };
+        } else {
+          return {
+            type: 'text',
+            text: b.el.textContent
+          };
+        }
+      });
+      localStorage.setItem('thoughtBubbles', JSON.stringify(bubblesData));
+    }, 1300);
+  }
+
+  // ---- Fire Animation (Canvas) ----
+  const fireCanvas = document.getElementById('fireCanvas');
+  const ctx = fireCanvas.getContext('2d');
+  const fireParticles = [];
+  function spawnFireParticle() {
+    const x = 60 + Math.random()*180;
+    const y = 110 + Math.random()*12;
+    const velY = -2.5 - Math.random()*2;
+    const size = 16 + Math.random()*16;
+    const color = `rgba(255,209,128,${0.18+Math.random()*0.5})`; // orange fire!
+    fireParticles.push({x, y, velY, size, color, life: 0});
+  }
+  function drawFire() {
+    ctx.clearRect(0,0,fireCanvas.width,fireCanvas.height);
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.beginPath();
+    ctx.ellipse(150, 120, 75, 28, 0, 0, 2*Math.PI);
+    ctx.fillStyle = "#ffd180";
+    ctx.shadowColor = "#ffd180";
+    ctx.shadowBlur = 38;
+    ctx.fill();
+    ctx.restore();
+    for (let i=0; i<fireParticles.length; ++i) {
+      const p = fireParticles[i];
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, 2*Math.PI);
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 12;
+      ctx.fill();
+      ctx.restore();
+      p.y += p.velY;
+      p.size *= 0.97;
+      p.life++;
+      if (p.life > 45 || p.size < 2) {
+        fireParticles.splice(i,1);
+        i--;
+      }
+    }
+    if (fireParticles.length < 30) {
+      spawnFireParticle();
+    }
+    requestAnimationFrame(drawFire);
+  }
+  drawFire();
+
+  window.addEventListener('resize', ()=>{
+    for (let b of bubblesArr) {
+      if (b.x > window.innerWidth - b.bw) b.x = window.innerWidth-b.bw;
+      if (b.y > window.innerHeight - b.bh - 10) b.y = window.innerHeight-b.bh-10;
+    }
+  });
+
+  document.getElementById('thoughtInput').addEventListener('keydown', function(e){
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      addBubble();
+    }
+  });
+  </script>
+</body>
+</html>
