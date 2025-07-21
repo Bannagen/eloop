@@ -18,6 +18,8 @@
       --fire-gradient: radial-gradient(circle at 50% 70%, #ffd180 40%, #ffae5a 70%, #ffe4b3 100%);
       --max-width: 700px;
       --font: 'Inter', 'JetBrains Mono', monospace;
+      --discord: #5865f2;
+      --discord-hover: #4853d9;
     }
     body {
       margin: 0;
@@ -26,6 +28,43 @@
       font-family: var(--font);
       color: var(--primary);
       letter-spacing: 0.01em;
+    }
+    .discord-btn {
+      position: fixed;
+      top: 24px;
+      right: 36px;
+      z-index: 900;
+      background: var(--discord);
+      color: #fff;
+      border-radius: 24px;
+      padding: 0.45em 1.2em 0.45em 0.8em;
+      font-size: 1.04em;
+      font-weight: 700;
+      box-shadow: 0 2px 14px #5865f255;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.6em;
+      transition: background 0.17s, box-shadow 0.17s;
+      text-decoration: none;
+    }
+    .discord-btn:hover,
+    .discord-btn:active {
+      background: var(--discord-hover);
+      box-shadow: 0 2px 22px #4853d999;
+      color: #fff;
+      text-decoration: underline;
+    }
+    .discord-btn svg {
+      width: 1.45em;
+      height: 1.45em;
+      vertical-align: middle;
+      display: inline-block;
+    }
+    @media (max-width:700px) {
+      .discord-btn { right: 10px; top: 10px; font-size: 0.97em;}
     }
     .container {
       max-width: var(--max-width);
@@ -291,14 +330,22 @@
       .thought-list, .voice-list { width: 100%; max-width: 100%;}
       .fire-zone-wrap { width: 98vw;}
       .fire-label, #fire-zone { width: 98vw; max-width: 98vw;}
+      .discord-btn { right: 10px; top: 10px; font-size: 0.97em;}
     }
   </style>
 </head>
 <body>
+  <a class="discord-btn" target="_blank" href="https://discord.gg/eternalloop" title="Join our Discord">
+    <svg viewBox="0 0 32 32" fill="none">
+      <circle cx="16" cy="16" r="16" fill="#5865f2"/>
+      <path d="M10.89 12.91c.5-.36 1.05-.69 1.65-.98.1-.05.2.01.22.12l.14.62a.19.19 0 01-.09.21c-.34.17-.65.36-.94.57a.19.19 0 01-.28-.08l-.26-.5a.19.19 0 01.06-.26zM21.1 12.91c-.5-.36-1.05-.69-1.65-.98a.19.19 0 00-.22.12l-.14.62c-.02.09.03.18.09.21.34.17.65.36.94.57a.19.19 0 00.28-.08l.26-.5a.19.19 0 00-.06-.26z" fill="#fff"/>
+      <path d="M19.4 20.03c1.29 0 2.34-1.05 2.34-2.34V13.7c0-1.29-1.05-2.34-2.34-2.34h-6.8c-1.29 0-2.34 1.05-2.34 2.34v3.99c0 1.29 1.05 2.34 2.34 2.34h6.8zm-5.37-3.32c-.39 0-.71-.32-.71-.71s.32-.71.71-.71.71.32.71.71-.32.71-.71.71zm3.94 0c-.39 0-.71-.32-.71-.71s.32-.71.71-.71.71.32.71.71-.32.71-.71.71z" fill="#fff"/>
+    </svg>
+    Discord
+  </a>
   <div class="container">
     <div class="status-banner">
-      <span>🚧 This site is still under active development.</span>
-      <span>Core functionality is live — feel free to burn a thought</span>
+      <span>🌎 This website is in production, but you can burn your thought for now.</span>
     </div>
     <form id="thoughtForm" class="card" autocomplete="off" onsubmit="event.preventDefault();addBubble();">
       <label for="thoughtInput">Burn your thoughts</label>
@@ -480,7 +527,7 @@
       };
       recognition.start();
     }
-    // Voice Recorder (cross-browser robust: prefer audio/wav, fallback to webm)
+    // Voice Recorder (cross-browser robust: prefer audio/webm;codecs=opus, fallback to webm, wav, mp4)
     let mediaRecorder, recordedChunks = [];
     let recBtn = document.getElementById('recBtn');
     let isRecording = false;
